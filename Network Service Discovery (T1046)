@@ -307,3 +307,15 @@ process {
 
   $output
 }
+
+
+
+# 1) Fast local snapshot + discovered hosts (no port probing)
+# .\Get-NetworkSurvey.ps1 | Format-Table -Auto
+
+# 2) Include TCP port probing (be considerate on big networks)
+# .\Get-NetworkSurvey.ps1 -ProbeCommonPorts -MaxConcurrency 20 -OutCsv .\survey.csv
+
+# 3) Target a known list and export JSON
+# .\Get-NetworkSurvey.ps1 -TargetsFile .\hosts.txt -ProbeCommonPorts -TimeoutMs 800 -JsonOut .\survey.json
+
