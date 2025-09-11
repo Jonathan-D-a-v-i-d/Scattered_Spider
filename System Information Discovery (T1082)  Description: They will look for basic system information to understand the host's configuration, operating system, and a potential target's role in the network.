@@ -169,3 +169,14 @@ process {
 
   $results
 }
+
+
+# Local machine (quick view)
+# .\Get-HostIdentity.ps1 | Format-Table Hostname,OSName,OSVersion,Model,IPAddresses
+
+# Multiple hosts with creds, export CSV
+# .\Get-HostIdentity.ps1 -ComputerName PC01,PC02,SRV01 -Credential (Get-Credential) -CsvOut .\hosts.csv
+
+# From a file, export JSON
+# Get-Content .\targets.txt | .\Get-HostIdentity.ps1 -JsonOut .\hosts.json
+
