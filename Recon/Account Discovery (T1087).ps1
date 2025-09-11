@@ -93,7 +93,7 @@ begin {
         Section     = 'LocalAdmins'
         Host        = $Computer
         MemberName  = "$($m.Domain)\$($m.Name)"
-        MemberClass = $m.PSComputerName ? 'Unknown' : 'Unknown' # kept for parity; Win32_Account covers users & groups
+        MemberClass = if ($m.ObjectClass) { $m.ObjectClass } else { 'Unknown' }
         Source      = 'CIM:Win32_Group -> Win32_Account'
         Notes       = $null
       }
@@ -114,18 +114,21 @@ begin {
     $members = @()
     $capture = $false
     foreach ($line in $rows) {
-      if ($line -match '^---') { $capture = -not $capture; continue }
-      if ($capture -and $line.Trim()) {
+      if ($line -match '^-+$') { $capture = -not $capture; continue }
+      if ($capture -and $line.Trim() -and $line -notmatch '(command completed|successfully)') {
         $name = $line.Trim()
-        # normalize local accounts without domain prefix
-        if ($name -notmatch '^[^\\]+\\') { $name = "$Computer\$name" }
-        $members += [PSCustomObject]@{
-          Section     = 'LocalAdmins'
-          Host        = $Computer
-          MemberName  = $name
-          MemberClass = 'Unknown'
-          Source      = 'net localgroup administrators'
-          Notes       = $null
+        # Skip empty lines and command status messages
+        if ($name -and $name -ne '') {
+          # normalize local accounts without domain prefix
+          if ($name -notmatch '^[^\\]+\\') { $name = "$Computer\$name" }
+          $members += [PSCustomObject]@{
+            Section     = 'LocalAdmins'
+            Host        = $Computer
+            MemberName  = $name
+            MemberClass = 'Unknown'
+            Source      = 'net localgroup administrators'
+            Notes       = $null
+          }
         }
       }
     }

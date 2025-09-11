@@ -85,11 +85,14 @@ begin {
       OSName             = $os.Caption
       OSVersion          = $os.Version
       OSBuild            = $gci.OsBuildNumber
-      InstallDate        = if ($os.InstallDate) { [Management.ManagementDateTimeConverter]::ToDateTime($os.InstallDate) }
-      LastBootUpTime     = if ($os.LastBootUpTime) { [Management.ManagementDateTimeConverter]::ToDateTime($os.LastBootUpTime) }
+      InstallDate        = if ($os.InstallDate) { try { [Management.ManagementDateTimeConverter]::ToDateTime($os.InstallDate) } catch { $null } };
+      LastBootUpTime     = if ($os.LastBootUpTime) { try { [Management.ManagementDateTimeConverter]::ToDateTime($os.LastBootUpTime) } catch { $null } };
       UptimeDays         = if ($os.LastBootUpTime) { 
-                              [Math]::Round((New-TimeSpan -Start ([Management.ManagementDateTimeConverter]::ToDateTime($os.LastBootUpTime)) -End (Get-Date)).TotalDays,2)
-                           }
+                              try {
+                                $bootTime = [Management.ManagementDateTimeConverter]::ToDateTime($os.LastBootUpTime)
+                                [Math]::Round((New-TimeSpan -Start $bootTime -End (Get-Date)).TotalDays,2)
+                              } catch { $null }
+                           };
 
       Manufacturer       = $cs.Manufacturer
       Model              = $cs.Model
@@ -98,7 +101,7 @@ begin {
       CPU                = ($cpu.Name | Select-Object -First 1)
       LogicalProcessors  = ($cpu.NumberOfLogicalProcessors | Measure-Object -Sum).Sum
       PhysicalCores      = ($cpu.NumberOfCores | Measure-Object -Sum).Sum
-      RAM_GB             = if ($cs.TotalPhysicalMemory) { [math]::Round($cs.TotalPhysicalMemory/1GB,2) }
+      RAM_GB             = if ($cs.TotalPhysicalMemory) { [math]::Round($cs.TotalPhysicalMemory/1GB,2) };
 
       LoggedOnUser       = $cs.UserName
       IPAddresses        = $net.IPs -join ', '
@@ -133,18 +136,18 @@ begin {
             $kv[$matches[1].Trim()] = $matches[2].Trim()
           }
         }
-        $obj.OSName         = $obj.OSName         ?? $kv['OS Name']
-        $obj.OSVersion      = $obj.OSVersion      ?? ($kv['OS Version'] -split '\s+' | Select-Object -First 1)
-        $obj.OSBuild        = $obj.OSBuild        ?? ($kv['OS Version'] -replace '.*Build\s+(\d+).*','$1')
-        $obj.InstallDate    = $obj.InstallDate    ?? (Invoke-Safe { Get-Date $kv['Original Install Date'] })
-        $obj.LastBootUpTime = $obj.LastBootUpTime ?? (Invoke-Safe { Get-Date $kv['System Boot Time'] })
-        $obj.Manufacturer   = $obj.Manufacturer   ?? $kv['System Manufacturer']
-        $obj.Model          = $obj.Model          ?? $kv['System Model']
-        $obj.RAM_GB         = $obj.RAM_GB         ?? (Invoke-Safe {
+        if (-not $obj.OSName)         { $obj.OSName         = $kv['OS Name'] }
+        if (-not $obj.OSVersion)      { $obj.OSVersion      = ($kv['OS Version'] -split '\s+' | Select-Object -First 1) }
+        if (-not $obj.OSBuild)        { $obj.OSBuild        = ($kv['OS Version'] -replace '.*Build\s+(\d+).*','$1') }
+        if (-not $obj.InstallDate)    { $obj.InstallDate    = (Invoke-Safe { Get-Date $kv['Original Install Date'] }) }
+        if (-not $obj.LastBootUpTime) { $obj.LastBootUpTime = (Invoke-Safe { Get-Date $kv['System Boot Time'] }) }
+        if (-not $obj.Manufacturer)   { $obj.Manufacturer   = $kv['System Manufacturer'] }
+        if (-not $obj.Model)          { $obj.Model          = $kv['System Model'] }
+        if (-not $obj.RAM_GB)         { $obj.RAM_GB         = (Invoke-Safe {
                                   if ($kv['Total Physical Memory']) {
                                     [math]::Round(([double]($kv['Total Physical Memory'] -replace '[^\d.]'))/1MB,2)
                                   }
-                                })
+                                }) }
       }
       $obj.Notes = 'CIM unavailable; used systeminfo/hostname locally.'
     }

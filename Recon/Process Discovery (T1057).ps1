@@ -54,17 +54,21 @@ begin {
 
     # --- Fallback: tasklist /svc (local only, or remote with /s switch) ---
     $tasklist = if ($isLocal) {
-      Invoke-Safe { tasklist /svc /fo csv /nh }
+      Invoke-Safe { tasklist /svc /fo csv }
     } else {
-      Invoke-Safe { tasklist /s $Computer /u $Cred.UserName /p $Cred.GetNetworkCredential().Password /svc /fo csv /nh }
+      if ($Cred) {
+        Invoke-Safe { tasklist /s $Computer /u $Cred.UserName /p $Cred.GetNetworkCredential().Password /svc /fo csv }
+      } else {
+        Invoke-Safe { tasklist /s $Computer /svc /fo csv }
+      }
     }
 
     if ($tasklist) {
-      return $tasklist | ConvertFrom-Csv | ForEach-Object {
+      return $tasklist | ConvertFrom-Csv | Where-Object { $_.'Image Name' -and $_.'Image Name' -ne 'Image Name' } | ForEach-Object {
         [PSCustomObject]@{
           Section   = 'Process'
           Host      = $Computer
-          PID       = [int]$_.PID
+          PID       = if ($_.'PID') { [int]$_.'PID' } else { 0 }
           Name      = $_.'Image Name'
           Path      = $null
           CPU       = $null

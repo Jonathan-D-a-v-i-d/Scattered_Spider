@@ -48,8 +48,8 @@ begin {
     if ($tcp) {
       $procById = @(Get-Process) | Group-Object Id -AsHashTable -AsString
       return $tcp | ForEach-Object {
-        $pid = $_.OwningProcess
-        $p   = $procById["$pid"]
+        $processId = $_.OwningProcess
+        $p   = $procById["$processId"]
         [PSCustomObject]@{
           Source         = 'Get-NetTCPConnection'
           LocalAddress   = $_.LocalAddress
@@ -57,7 +57,7 @@ begin {
           RemoteAddress  = $_.RemoteAddress
           RemotePort     = $_.RemotePort
           State          = $_.State
-          PID            = $pid
+          PID            = $processId
           ProcessName    = $p.Name
         }
       }
@@ -68,8 +68,8 @@ begin {
     if (-not $lines) { return @() }
     $data = foreach ($ln in $lines) {
       if ($ln -match '^\s*TCP\s+(\S+):(\d+)\s+(\S+):(\d+)\s+(\S+)\s+(\d+)\s*$') {
-        $localAddr,$localPort,$remoteAddr,$remotePort,$state,$pid = $matches[1..6]
-        $pname = (Invoke-Safe { (Get-Process -Id $pid -ErrorAction Stop).Name })
+        $localAddr,$localPort,$remoteAddr,$remotePort,$state,$processId = $matches[1..6]
+        $pname = (Invoke-Safe { (Get-Process -Id $processId -ErrorAction Stop).Name })
         [PSCustomObject]@{
           Source         = 'netstat'
           LocalAddress   = $localAddr
@@ -77,7 +77,7 @@ begin {
           RemoteAddress  = $remoteAddr
           RemotePort     = [int]$remotePort
           State          = $state
-          PID            = [int]$pid
+          PID            = [int]$processId
           ProcessName    = $pname
         }
       }
@@ -125,14 +125,14 @@ begin {
   }
 
   function Get-HostShares {
-    param([string] $Host)
-    $rows = Invoke-Safe { (net view "\\$Host") 2>$null }
+    param([string] $TargetHost)
+    $rows = Invoke-Safe { (net view "\\$TargetHost") 2>$null }
     if (-not $rows) { return @() }
     $shares = foreach ($line in $rows) {
       # Typical "ShareName   Type   Remark" lines
       if ($line -match '^\s*([^\s]+)\s+(Disk|Print|IPC)\b') {
         [PSCustomObject]@{
-          Host  = $Host
+          Host  = $TargetHost
           Share = $matches[1]
           Type  = $matches[2]
         }
@@ -231,7 +231,7 @@ process {
   # 3) Discover hosts
   $targets = New-Object System.Collections.Generic.HashSet[string]
   if ($ComputerName)       { $ComputerName       | Where-Object {$_} | ForEach-Object { [void]$targets.Add($_) } }
-  if (Test-Path $TargetsFile) { Get-Content $TargetsFile | Where-Object {$_} | ForEach-Object { [void]$targets.Add($_) } }
+  if ($TargetsFile -and (Test-Path $TargetsFile)) { Get-Content $TargetsFile | Where-Object {$_} | ForEach-Object { [void]$targets.Add($_) } }
 
   if ($targets.Count -eq 0) {
     $discovered = Get-DomainHosts
@@ -242,7 +242,7 @@ process {
   $hostRows = [System.Collections.Generic.List[object]]::new()
   foreach ($t in $targets) {
     $res = Resolve-NameSafe -NameOrIp $t
-    $shares = Get-HostShares -Host $t
+    $shares = Get-HostShares -TargetHost $t
 
     if ($shares) {
       foreach ($s in $shares) {
@@ -265,27 +265,20 @@ process {
     }
 
     if ($ProbeCommonPorts) {
-      # Queue limited parallel port probes per host
-      $sem = New-Object System.Threading.SemaphoreSlim($MaxConcurrency,$MaxConcurrency)
-      $tasks = foreach ($p in $CommonTcpPorts) {
-        $null = $sem.Wait()
-        [System.Threading.Tasks.Task]::Run({
-          try { Test-TcpPort -Host $t -Port $p -Timeout $using:TimeoutMs }
-          finally { $using:sem.Release() | Out-Null }
-        })
-      }
-      [System.Threading.Tasks.Task]::WaitAll($tasks)
-      $results = $tasks | ForEach-Object { $_.Result } | Where-Object { $_ }
-      foreach ($r in $results) {
-        $hostRows.Add([PSCustomObject]@{
-          Section    = 'PortProbe'
-          Host       = $r.Host
-          Port       = $r.Port
-          TcpOpen    = $r.TcpOpen
-          LatencyMs  = $r.LatencyMs
-          SvcGuess   = $r.SvcGuess
-          Error      = $r.Error
-        })
+      # Sequential port probes per host (simpler and more reliable)
+      foreach ($p in $CommonTcpPorts) {
+        $r = Test-TcpPort -Host $t -Port $p -Timeout $TimeoutMs
+        if ($r) {
+          $hostRows.Add([PSCustomObject]@{
+            Section    = 'PortProbe'
+            Host       = $r.Host
+            Port       = $r.Port
+            TcpOpen    = $r.TcpOpen
+            LatencyMs  = $r.LatencyMs
+            SvcGuess   = $r.SvcGuess
+            Error      = $r.Error
+          })
+        }
       }
     }
   }

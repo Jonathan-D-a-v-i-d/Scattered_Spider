@@ -130,9 +130,9 @@ begin {
   }
 
   function New-Result {
-    param($Host,$fi,$reason,$match)
+    param($TargetHost,$fi,$reason,$match)
     [PSCustomObject]@{
-      Host          = $Host
+      Host          = $TargetHost
       FullPath      = $fi.FullName
       Name          = $fi.Name
       Extension     = $fi.Extension
@@ -146,9 +146,9 @@ begin {
   }
 
   function Get-RootsForHost {
-    param([string]$Host)
-    if ($Host -in @('localhost',$env:COMPUTERNAME,'.','127.0.0.1')) {
-      return $Path ?? (Get-DefaultRoots)
+    param([string]$TargetHost)
+    if ($TargetHost -in @('localhost',$env:COMPUTERNAME,'.','127.0.0.1')) {
+      if ($Path) { return $Path } else { return Get-DefaultRoots }
     }
     # For remote host via admin share, translate to \\HOST\C$ roots
     $roots = @()
@@ -157,18 +157,18 @@ begin {
         if ($p -match '^[A-Za-z]:\\') {
           $drive = $p.Substring(0,1)
           $rest  = $p.Substring(3)
-          $roots += "\\$Host\$drive`$\$rest"
+          $roots += "\\$TargetHost\$drive`$\$rest"
         } else {
-          $roots += "\\$Host\C$\$p"
+          $roots += "\\$TargetHost\C$\$p"
         }
       }
     } else {
       # enumerate fixed drives remotely (best effort)
-      $drives = Invoke-Safe { (Get-CimInstance -ComputerName $Host Win32_LogicalDisk -Filter "DriveType=3").DeviceID }
+      $drives = Invoke-Safe { (Get-CimInstance -ComputerName $TargetHost Win32_LogicalDisk -Filter "DriveType=3").DeviceID }
       if ($drives) {
-        foreach ($d in $drives) { $roots += "\\$Host\$($d.Substring(0,1))$\" }
+        foreach ($d in $drives) { $roots += "\\$TargetHost\$($d.Substring(0,1))$\" }
       } else {
-        $roots = @("\\$Host\C$\")
+        $roots = @("\\$TargetHost\C$\")
       }
     }
     $roots
@@ -181,8 +181,8 @@ process {
 
   $findings = New-Object System.Collections.Generic.List[object]
 
-  foreach ($host in $hosts) {
-    $roots = Get-RootsForHost -Host $host
+  foreach ($targetHost in $hosts) {
+    $roots = Get-RootsForHost -TargetHost $targetHost
 
     foreach ($root in $roots) {
       if (-not (Test-Path -LiteralPath $root)) { continue }
@@ -210,7 +210,10 @@ process {
         $extHit = ($Extensions -contains $fi.Extension.ToLower())
 
         if ($nameHit -or $extHit) {
-          $findings.Add( (New-Result -Host $host -fi $fi -reason ('Name/Ext: ' + ($nameHit?'name ':'') + ($extHit?'ext':'')) -match $null) ) | Out-Null
+          $reasonParts = @()
+          if ($nameHit) { $reasonParts += 'name' }
+          if ($extHit) { $reasonParts += 'ext' }
+          $findings.Add( (New-Result -TargetHost $targetHost -fi $fi -reason ('Name/Ext: ' + ($reasonParts -join ' ')) -match $null) ) | Out-Null
         }
 
         if ($IncludeContent) {
@@ -226,7 +229,7 @@ process {
             if ($m.Success) {
               $snippet = $m.Value
               if ($snippet.Length -gt 200) { $snippet = $snippet.Substring(0,200) + '…' }
-              $row = New-Result -Host $host -fi $fi -reason "Content:$rx" -match $snippet
+              $row = New-Result -TargetHost $targetHost -fi $fi -reason "Content:$rx" -match $snippet
               if ($IncludeHash) { $row.HashSHA256 = Hash-File -FullPath $full }
               $findings.Add($row) | Out-Null
               break
