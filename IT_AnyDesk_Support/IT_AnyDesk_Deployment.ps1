@@ -151,6 +151,23 @@ try {
                     Write-Host "AnyDesk ID: $anyDeskID" -ForegroundColor Yellow
                     Write-Host "Admin Password: $AdminPassword" -ForegroundColor Yellow
                     Write-Host "Ready for IT remote support connections" -ForegroundColor Green
+                    
+                    # Step 7: Automatically ensure Git CLI is available for follow-up operations
+                    Write-Host "`n[*] Ensuring Git CLI availability for follow-up operations..." -ForegroundColor Cyan
+                    $ensureGitPath = Join-Path $PSScriptRoot "Ensure_Git.ps1"
+                    
+                    if (Test-Path $ensureGitPath) {
+                        try {
+                            & $ensureGitPath -Quiet
+                            Write-Host "[+] Git CLI ready for repository operations" -ForegroundColor Green
+                        }
+                        catch {
+                            Write-Warning "Git installation attempt failed: $($_.Exception.Message)"
+                            Write-Host "[!] Manual Git installation may be required for repository cloning" -ForegroundColor Yellow
+                        }
+                    } else {
+                        Write-Warning "Git installer not found in deployment package. Repository cloning may require manual Git installation."
+                    }
                 }
             } else {
                 Write-Log "Warning: Could not retrieve AnyDesk ID immediately. Service may need time to initialize."
