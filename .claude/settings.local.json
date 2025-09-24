@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(powershell:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(timeout:*)",
+      "Read(//c/Intel/Logs/**)"
     ],
     "deny": [],
     "ask": []

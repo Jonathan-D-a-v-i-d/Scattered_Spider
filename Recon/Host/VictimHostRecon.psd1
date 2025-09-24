@@ -16,7 +16,6 @@
     # Functions to export from this module
     FunctionsToExport = @(
         'Invoke-AccountDiscovery',
-        'Invoke-FileDirectoryDiscovery', 
         'Invoke-NetworkServiceDiscovery',
         'Invoke-ProcessDiscovery',
         'Invoke-SoftwareDiscovery',

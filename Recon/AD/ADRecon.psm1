@@ -18,13 +18,13 @@ function Import-RequiredModules {
             Import-Module ActiveDirectory -ErrorAction Stop -WarningAction SilentlyContinue
             return $true
         } else {
-            Write-Host "[!] Active Directory module not available" -ForegroundColor Red
-            Write-Host "[!] Run Install-RSATTools to install required components" -ForegroundColor Red
+            Write-Host "Active Directory module not available" -ForegroundColor Red
+            Write-Host "Run Install-RSATTools to install required components" -ForegroundColor Red
             return $false
         }
     }
     catch {
-        Write-Host "[!] Failed to import Active Directory module: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "Failed to import Active Directory module: $($_.Exception.Message)" -ForegroundColor Red
         return $false
     }
 }
@@ -69,7 +69,7 @@ function Invoke-DomainUserDiscovery {
         $outputFile = Join-Path $global:ADReconConfig.OutputDirectory "$($global:ADReconConfig.Prefix)DomainUserDiscovery.txt"
         Ensure-OutputDirectory
         $results | Format-Table -AutoSize | Out-String | Out-File -FilePath $outputFile -Encoding UTF8
-        Write-Host "[+] Results saved to: $outputFile" -ForegroundColor Green
+        Write-Host "✓ Results saved to: $outputFile" -ForegroundColor Green
         
         return $results
     } else {
@@ -99,7 +99,7 @@ function Invoke-GroupPolicyDiscovery {
         $outputFile = Join-Path $global:ADReconConfig.OutputDirectory "$($global:ADReconConfig.Prefix)GroupPolicyDiscovery.txt"
         Ensure-OutputDirectory
         $results | Format-Table -AutoSize | Out-String | Out-File -FilePath $outputFile -Encoding UTF8
-        Write-Host "[+] Results saved to: $outputFile" -ForegroundColor Green
+        Write-Host "✓ Results saved to: $outputFile" -ForegroundColor Green
         
         return $results
     } else {
@@ -130,7 +130,7 @@ function Invoke-ComputerDiscovery {
         $outputFile = Join-Path $global:ADReconConfig.OutputDirectory "$($global:ADReconConfig.Prefix)ComputerDiscovery.txt"
         Ensure-OutputDirectory
         $results | Format-Table -AutoSize | Out-String | Out-File -FilePath $outputFile -Encoding UTF8
-        Write-Host "[+] Results saved to: $outputFile" -ForegroundColor Green
+        Write-Host "✓ Results saved to: $outputFile" -ForegroundColor Green
         
         return $results
     } else {
@@ -160,7 +160,7 @@ function Invoke-TrustDiscovery {
         $outputFile = Join-Path $global:ADReconConfig.OutputDirectory "$($global:ADReconConfig.Prefix)TrustDiscovery.txt"
         Ensure-OutputDirectory
         $results | Format-Table -AutoSize | Out-String | Out-File -FilePath $outputFile -Encoding UTF8
-        Write-Host "[+] Results saved to: $outputFile" -ForegroundColor Green
+        Write-Host "✓ Results saved to: $outputFile" -ForegroundColor Green
         
         return $results
     } else {
@@ -222,7 +222,7 @@ function Invoke-FullADReconnaissance {
     try {
         $userResults = Invoke-DomainUserDiscovery
         $allResults += @{ Technique = "Domain User Discovery"; Results = $userResults; Count = $userResults.Count }
-        Write-Host "[+] Completed: Found $($userResults.Count) users" -ForegroundColor Green
+        Write-Host "✓ Completed: Found $($userResults.Count) users" -ForegroundColor Green
     }
     catch {
         Write-Host "[!] Failed: $($_.Exception.Message)" -ForegroundColor Red
@@ -235,7 +235,7 @@ function Invoke-FullADReconnaissance {
     try {
         $gpoResults = Invoke-GroupPolicyDiscovery -Detailed:$Detailed
         $allResults += @{ Technique = "Group Policy Discovery"; Results = $gpoResults; Count = $gpoResults.Count }
-        Write-Host "[+] Completed: Found $($gpoResults.Count) GPO entries" -ForegroundColor Green
+        Write-Host "✓ Completed: Found $($gpoResults.Count) GPO entries" -ForegroundColor Green
     }
     catch {
         Write-Host "[!] Failed: $($_.Exception.Message)" -ForegroundColor Red
@@ -248,7 +248,7 @@ function Invoke-FullADReconnaissance {
     try {
         $computerResults = Invoke-ComputerDiscovery
         $allResults += @{ Technique = "Computer Discovery"; Results = $computerResults; Count = $computerResults.Count }
-        Write-Host "[+] Completed: Found $($computerResults.Count) computers" -ForegroundColor Green
+        Write-Host "✓ Completed: Found $($computerResults.Count) computers" -ForegroundColor Green
     }
     catch {
         Write-Host "[!] Failed: $($_.Exception.Message)" -ForegroundColor Red
@@ -261,7 +261,7 @@ function Invoke-FullADReconnaissance {
     try {
         $trustResults = Invoke-TrustDiscovery -Detailed:$Detailed
         $allResults += @{ Technique = "Trust Discovery"; Results = $trustResults; Count = $trustResults.Count }
-        Write-Host "[+] Completed: Found $($trustResults.Count) trust entries" -ForegroundColor Green
+        Write-Host "✓ Completed: Found $($trustResults.Count) trust entries" -ForegroundColor Green
     }
     catch {
         Write-Host "[!] Failed: $($_.Exception.Message)" -ForegroundColor Red
@@ -332,7 +332,7 @@ function Ensure-OutputDirectory {
     if (-not (Test-Path $global:ADReconConfig.OutputDirectory)) {
         try {
             New-Item -ItemType Directory -Path $global:ADReconConfig.OutputDirectory -Force | Out-Null
-            Write-Host "[+] Created output directory: $($global:ADReconConfig.OutputDirectory)" -ForegroundColor Green
+            Write-Host "✓ Created output directory: $($global:ADReconConfig.OutputDirectory)" -ForegroundColor Green
         }
         catch {
             Write-Error "Failed to create output directory: $($_.Exception.Message)"
@@ -349,7 +349,7 @@ function Get-ADReconResults {
     #>
     
     if (-not (Test-Path $global:ADReconConfig.OutputDirectory)) {
-        Write-Host "[!] No results found. Run Invoke-FullADReconnaissance first." -ForegroundColor Yellow
+        Write-Host "No results found. Run Invoke-FullADReconnaissance first." -ForegroundColor Yellow
         return
     }
     
@@ -366,8 +366,8 @@ function Get-ADReconResults {
     
     foreach ($file in $resultFiles) {
         $fileSize = [math]::Round($file.Length / 1KB, 2)
-        Write-Host "📄 $($file.Name) ($fileSize KB)" -ForegroundColor White
-        Write-Host "   Modified: $($file.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"))" -ForegroundColor Gray
+        Write-Host "- $($file.Name) ($fileSize KB)" -ForegroundColor White
+        Write-Host "   Modified: $(Get-Date $file.LastWriteTime -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Gray
         Write-Host ""
     }
 }
@@ -387,15 +387,15 @@ function Set-ADReconConfig {
     
     if ($Domain) { 
         $global:ADReconConfig.Domain = $Domain 
-        Write-Host "[+] Target domain set to: $Domain" -ForegroundColor Green
+        Write-Host "✓ Target domain set to: $Domain" -ForegroundColor Green
     }
     if ($Server) { 
         $global:ADReconConfig.Server = $Server 
-        Write-Host "[+] Target server set to: $Server" -ForegroundColor Green
+        Write-Host "✓ Target server set to: $Server" -ForegroundColor Green
     }
     if ($OutputDirectory) { 
         $global:ADReconConfig.OutputDirectory = $OutputDirectory 
-        Write-Host "[+] Output directory set to: $OutputDirectory" -ForegroundColor Green
+        Write-Host "✓ Output directory set to: $OutputDirectory" -ForegroundColor Green
     }
 }
 

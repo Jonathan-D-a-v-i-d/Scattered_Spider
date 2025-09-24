@@ -1,7 +1,7 @@
 # Scattered Spider Attack Chain - Complete Workflow
 
 ## Overview
-This repository simulates the complete Scattered Spider attack chain for security research and defensive training purposes.
+This repository simulates the complete Scattered Spider attack chain for security research and defensive training purposes, including credential extraction and domain controller compromise.
 
 ## Attack Vector Flow
 
@@ -57,6 +57,34 @@ Run-ADRecon (executes all domain techniques)
 Results saved to C:\Intel\Logs\
 ```
 
+### Phase 5: Post-Exploitation - Credential Extraction
+```
+.\Deploy_CredExtraction.ps1 -TargetUser Sherlock
+    ↓
+LaZagne downloaded and executed
+    ↓
+Browser credentials, Windows creds, cached domain creds extracted
+    ↓
+Sherlock's domain admin credentials harvested
+    ↓
+Credentials saved to C:\Intel\Logs\
+```
+
+### Phase 6: Post-Exploitation - Domain Controller Compromise
+```
+.\Deploy_DCCompromise.ps1 -Username Sherlock -Password [extracted]
+    ↓
+Domain Controller discovery
+    ↓
+Credential validation (domain admin check)
+    ↓
+NTDS.dit extraction via ntdsutil/VSS
+    ↓
+Complete domain hash database obtained
+    ↓
+Full domain compromise achieved
+```
+
 ## Files and Components
 
 ### Initial Access Tools
@@ -77,8 +105,16 @@ Results saved to C:\Intel\Logs\
 - `Deploy_VictimHostRecon.ps1` - Host recon deployment script
 - `Deploy_ADRecon.ps1` - AD recon deployment script
 
+### Post-Exploitation Framework
+- `Post-Exploit/CredExtraction/CredExtraction.psm1` - LaZagne credential extraction module
+- `Post-Exploit/CredExtraction/Credential Extraction (T1555-T1003).ps1` - Main extraction script
+- `Post-Exploit/DCCompromise/DCCompromise.psm1` - DC compromise and NTDS extraction module
+- `Post-Exploit/DCCompromise/NTDS Extraction (T1003.003).ps1` - NTDS.dit extraction script
+- `Deploy_CredExtraction.ps1` - Credential extraction deployment
+- `Deploy_DCCompromise.ps1` - DC compromise deployment
+
 ### Full Chain Automation
-- `Deploy_Complete_Chain.ps1` - Complete attack chain automation
+- `Deploy_Complete_Chain.ps1` - Complete 6-phase attack chain automation
 
 ### MITRE ATT&CK Techniques Covered
 
@@ -96,6 +132,13 @@ Results saved to C:\Intel\Logs\
 - **T1018** - Remote System Discovery
 - **T1482** - Domain Trust Discovery
 
+#### Credential Extraction (CredExtraction)
+- **T1555** - Credentials from Password Stores
+- **T1003** - OS Credential Dumping
+
+#### Domain Controller Compromise (DCCompromise)
+- **T1003.003** - OS Credential Dumping: NTDS
+
 ## Quick Deployment Commands
 
 ### For IT Support (Social Engineering)
@@ -106,12 +149,25 @@ Deploy_AnyDesk_IT.bat
 
 ### For Security Research (Complete Chain)
 ```powershell
-# Simulate full attack chain:
-.\Deploy_Complete_Chain.ps1 -AutoRecon
+# Simulate complete 6-phase attack chain:
+.\Deploy_Complete_Chain.ps1 -FullAttackChain -TargetUser Sherlock -DomainAdminUsername [user] -DomainAdminPassword [pass]
 
 # Or individual phases:
-.\Deploy_VictimHostRecon.ps1    # Host reconnaissance
-.\Deploy_ADRecon.ps1            # Domain reconnaissance
+.\Deploy_VictimHostRecon.ps1    # Phase 3: Host reconnaissance
+.\Deploy_ADRecon.ps1            # Phase 4: Domain reconnaissance  
+.\Deploy_CredExtraction.ps1     # Phase 5: Credential extraction
+.\Deploy_DCCompromise.ps1       # Phase 6: DC compromise
+```
+
+### For Lab Scenario (Irene → Sherlock → DC)
+```powershell
+# Irene (local admin) runs AnyDesk ZIP, Sherlock (domain admin) logged in
+.\Deploy_CredExtraction.ps1 -TargetUser Sherlock
+# Extract Sherlock's domain admin credentials
+
+# Use extracted credentials for DC compromise
+.\Deploy_DCCompromise.ps1 -Username Sherlock -Password [extracted_password]
+# Extract NTDS.dit for complete domain takeover
 ```
 
 ### For Manual Operations
@@ -124,18 +180,29 @@ Run-Recon
 Import-Module .\Recon\AD\ADRecon.psm1 -Force
 Run-ADRecon
 
+# Credential extraction:
+Import-Module .\Post-Exploit\CredExtraction\CredExtraction.psm1 -Force
+Run-CredExtraction
+
+# DC compromise:
+Import-Module .\Post-Exploit\DCCompromise\DCCompromise.psm1 -Force
+Run-DCCompromise
+
 # Individual techniques:
 Get-HostInfo                    # System info
 Invoke-AccountDiscovery         # Local accounts
 Invoke-DomainUserDiscovery      # Domain users
 Invoke-ComputerDiscovery        # Domain computers
+Invoke-CredentialExtraction     # LaZagne extraction
+Invoke-NTDSExtraction           # NTDS.dit extraction
 ```
 
 ## Output and Results
 
-All reconnaissance results are centralized in:
+All attack results are centralized in:
 ```
 C:\Intel\Logs\
+# Host Reconnaissance
 ├── VictimHost_SystemInfoDiscovery.txt
 ├── VictimHost_AccountDiscovery.txt
 ├── VictimHost_ProcessDiscovery.txt
@@ -143,11 +210,25 @@ C:\Intel\Logs\
 ├── VictimHost_NetworkServiceDiscovery.txt
 ├── VictimHost_FileDirectoryDiscovery.txt
 ├── VictimHost_ReconSummary.txt
+# Domain Reconnaissance  
 ├── ADRecon_DomainUserDiscovery.txt
 ├── ADRecon_GroupPolicyDiscovery.txt
 ├── ADRecon_ComputerDiscovery.txt
 ├── ADRecon_TrustDiscovery.txt
-└── ADRecon_ReconSummary.txt
+├── ADRecon_ReconSummary.txt
+# Post-Exploitation - Credential Extraction
+├── CredExtraction_CredentialExtraction.txt
+├── CredExtraction_BrowserCredentials.txt
+├── CredExtraction_MemoryCredentials.txt
+├── CredExtraction_ExtractionSummary.txt
+└── CredExtraction_LaZagne_Raw.txt
+# Post-Exploitation - DC Compromise
+├── DCCompromise_DCDiscovery.txt
+├── DCCompromise_NTDSExtraction.txt
+├── DCCompromise_CompromiseSummary.txt
+└── NTDS_Extraction/
+    ├── ntds.dit (domain database)
+    └── SYSTEM (registry hive)
 ```
 
 ## Security Features
@@ -162,12 +243,14 @@ C:\Intel\Logs\
 - **IT Branding**: Professional email templates and deployment packages
 - **Error Handling**: Comprehensive logging and fallback mechanisms
 
-### Comprehensive Reconnaissance
-- **MITRE Mapped**: All techniques properly categorized (10 total techniques)
-- **Modular Design**: Can execute individual techniques, module-level, or complete reconnaissance
+### Complete Attack Chain
+- **MITRE Mapped**: All techniques properly categorized (13 total techniques)
+- **Modular Design**: Can execute individual techniques, module-level, or complete attack chain
 - **Centralized Output**: Single location for all collected intelligence
-- **Dual Scope**: Local host reconnaissance + Active Directory domain reconnaissance
-- **RSAT Integration**: Automatic installation of required AD tools
+- **Multi-Phase**: Reconnaissance (Host + AD) + Post-Exploitation (CredExtraction + DC Compromise)
+- **LaZagne Integration**: Automatic credential harvesting from multiple sources
+- **NTDS Extraction**: Complete domain database compromise for hash extraction
+- **Logical Organization**: Clear separation between reconnaissance and post-exploitation activities
 
 ## Defensive Considerations
 
@@ -184,3 +267,9 @@ Monitor for:
 - RSAT installation attempts on workstations
 - Active Directory enumeration commands (Get-ADUser, Get-ADComputer, etc.)
 - Mass queries to domain controllers
+- LaZagne.exe download and execution
+- Browser credential database access (Login Data, logins.json)
+- Volume Shadow Copy creation for NTDS access
+- ntdsutil.exe execution on domain controllers
+- Large file transfers from system directories
+- NTDS.dit and SYSTEM hive file access

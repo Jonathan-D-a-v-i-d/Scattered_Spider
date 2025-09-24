@@ -57,36 +57,6 @@ function Invoke-AccountDiscovery {
     }
 }
 
-function Invoke-FileDirectoryDiscovery {
-    <#
-    .SYNOPSIS
-    Executes File and Directory Discovery (T1083) reconnaissance
-    #>
-    [CmdletBinding()]
-    param(
-        [string]$OutputFile = "$Global:ReconOutputPath\VictimHost_FileDirectoryDiscovery.txt"
-    )
-    
-    Write-Host "[*] Starting File and Directory Discovery (T1083)..." -ForegroundColor Cyan
-    
-    try {
-        $scriptPath = Join-Path $PSScriptRoot "File and Directory Discovery (T1083).ps1"
-        $results = & $scriptPath
-        
-        $results | Out-File -FilePath $OutputFile -Encoding UTF8
-        $Global:ReconResults['FileDirectoryDiscovery'] = @{
-            Results = $results
-            OutputFile = $OutputFile
-            Timestamp = Get-Date
-        }
-        
-        Write-Host "[+] File and Directory Discovery completed. Results saved to: $OutputFile" -ForegroundColor Green
-        return $results
-    }
-    catch {
-        Write-Error "File and Directory Discovery failed: $($_.Exception.Message)"
-    }
-}
 
 function Invoke-NetworkServiceDiscovery {
     <#
@@ -244,8 +214,7 @@ function Invoke-FullReconnaissance {
         { Invoke-AccountDiscovery -ComputerName $ComputerName },
         { Invoke-ProcessDiscovery },
         { Invoke-SoftwareDiscovery },
-        { Invoke-NetworkServiceDiscovery },
-        { Invoke-FileDirectoryDiscovery }
+        { Invoke-NetworkServiceDiscovery }
     )
     
     $totalModules = $modules.Count
@@ -282,11 +251,10 @@ Output Directory: $Global:ReconOutputPath
 
 MODULES EXECUTED:
 - System Information Discovery (T1082)
-- Account Discovery (T1087) 
+- Account Discovery (T1087)
 - Process Discovery (T1057)
 - Software Discovery (T1518)
 - Network Service Discovery (T1046)
-- File and Directory Discovery (T1083)
 
 RESULTS:
 $($Global:ReconResults.Keys | ForEach-Object { "- $_`: $($Global:ReconResults[$_].OutputFile)" } | Out-String)
@@ -330,8 +298,7 @@ Set-Alias -Name "Start-Discovery" -Value "Invoke-FullReconnaissance"
 # Export module functions
 Export-ModuleMember -Function @(
     'Invoke-AccountDiscovery',
-    'Invoke-FileDirectoryDiscovery',
-    'Invoke-NetworkServiceDiscovery', 
+    'Invoke-NetworkServiceDiscovery',
     'Invoke-ProcessDiscovery',
     'Invoke-SoftwareDiscovery',
     'Invoke-SystemInfoDiscovery',
@@ -339,6 +306,6 @@ Export-ModuleMember -Function @(
     'Get-ReconResults'
 ) -Alias @(
     'Run-Recon',
-    'Get-HostInfo', 
+    'Get-HostInfo',
     'Start-Discovery'
 )
